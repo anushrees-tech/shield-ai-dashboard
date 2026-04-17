@@ -59,11 +59,16 @@ interface SOCState {
   timeline: TimelinePoint[];
   threatBreakdown: ThreatBucket[];
   mitreHits: Record<string, number>;
+  blockedIps: Set<string>;
+  attacksBlocked: number;
+  voiceEnabled: boolean;
   pushLog: (l: LogEntry) => void;
   pushAlert: (a: AlertEntry) => void;
   simulateAttack: (k: AttackKind) => void;
   ingestFile: (name: string) => void;
   runPlaybook: (label: string) => void;
+  blockIp: (ip: string) => void;
+  toggleVoice: () => void;
   tick: () => void;
 }
 
