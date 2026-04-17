@@ -198,6 +198,8 @@ export const useSOC = create<SOCState>((set, get) => ({
   blockedIps: new Set<string>(),
   attacksBlocked: 0,
   voiceEnabled: false,
+
+  pushLog: (l) =>
     set((s) => {
       const logs = [l, ...s.logs].slice(0, 200);
       const next = { ...s, logs };
