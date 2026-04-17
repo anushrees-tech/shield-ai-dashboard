@@ -209,6 +209,23 @@ export const useSOC = create<SOCState>((set, get) => ({
   pushAlert: (a) =>
     set((s) => {
       const alerts = [a, ...s.alerts].slice(0, 80);
+      // Voice alert for high-confidence threats
+      if (s.voiceEnabled && a.confidence > 0.85 && typeof window !== "undefined") {
+        try {
+          const synth = window.speechSynthesis;
+          if (synth) {
+            const u = new SpeechSynthesisUtterance(
+              `Critical alert. ${a.threat} detected from ${a.ip.split(".").join(" dot ")}. Confidence ${(a.confidence * 100).toFixed(0)} percent.`,
+            );
+            u.rate = 1.05;
+            u.pitch = 0.9;
+            u.volume = 0.9;
+            synth.speak(u);
+          }
+        } catch {
+          /* speech unavailable */
+        }
+      }
       return { alerts, metrics: { ...s.metrics, alerts: alerts.length } };
     }),
 
@@ -299,6 +316,46 @@ export const useSOC = create<SOCState>((set, get) => ({
     toast.success(`Playbook executed: ${label}`, {
       description: "Action propagated to enforcement nodes",
     });
+  },
+
+  blockIp: (ip) => {
+    const state = get();
+    if (state.blockedIps.has(ip)) {
+      toast.info(`IP ${ip} already blocked`, {
+        description: "Firewall rule active",
+      });
+      return;
+    }
+    const blockedIps = new Set(state.blockedIps);
+    blockedIps.add(ip);
+    set({ blockedIps, attacksBlocked: state.attacksBlocked + 1 });
+    toast.success(`🛡 IP ${ip} blocked`, {
+      description: "Edge firewall rule deployed · attack neutralized",
+    });
+    get().pushLog({
+      id: rid(),
+      time: now(),
+      ip,
+      message: `SOAR action: blackhole route installed for ${ip}`,
+      severity: "normal",
+      layer: "soar",
+    });
+  },
+
+  toggleVoice: () => {
+    const next = !get().voiceEnabled;
+    set({ voiceEnabled: next });
+    toast.success(next ? "🔊 Voice alerts enabled" : "🔇 Voice alerts muted", {
+      description: next
+        ? "Critical threats (>85% confidence) will be announced"
+        : "Voice channel suppressed",
+    });
+    if (next && typeof window !== "undefined" && window.speechSynthesis) {
+      const u = new SpeechSynthesisUtterance("Voice alerts armed.");
+      u.rate = 1.05;
+      u.pitch = 0.9;
+      window.speechSynthesis.speak(u);
+    }
   },
 
   tick: () => {
